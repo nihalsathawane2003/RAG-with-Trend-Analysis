@@ -1,0 +1,19 @@
+streamlit>=1.37
+pandas>=2.2
+numpy>=1.26
+pyyaml>=6.0
+tqdm>=4.66
+nltk>=3.9
+vaderSentiment>=3.3.2
+sentence-transformers>=3.0
+chromadb>=0.5
+scikit-learn>=1.5
+pydantic>=2.7
+requests>=2.32
+orjson>=3.10
+# Optional (enable when you have keys)
+openai>=1.40
+# Optional social APIs (install if using real sources)
+praw>=7.7   # reddit
+tweepy>=4.14  # X/Twitter
+google-api-python-client>=2.139  # YouTube

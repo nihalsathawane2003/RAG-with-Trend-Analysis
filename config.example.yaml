@@ -1,0 +1,34 @@
+# Copy to config.yaml and fill what you have.
+twitter:
+  bearer_token: ""
+
+reddit:
+  client_id: ""
+  client_secret: ""
+  user_agent: "social-rag-demo"
+
+youtube:
+  api_key: ""
+
+openai:
+  api_key: ""
+
+ingestion:
+  platforms: ["twitter","reddit","youtube"]
+  search_terms: ["ai", "election", "meme", "startup"]
+  window_minutes: 120
+  max_posts: 300
+
+trend:
+  ngram_min: 1
+  ngram_max: 3
+  min_count: 3
+  zscore_threshold: 2.0
+  refresh_seconds: 90
+
+moderation:
+  enable: true
+
+alerts:
+  enable: true
+  min_trend_strength: 2.5
