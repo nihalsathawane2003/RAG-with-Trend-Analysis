@@ -1,60 +1,53 @@
-import os
 from typing import List, Dict
-
-# Force in-memory Chroma for Streamlit Cloud or restricted environments
-# This avoids using persistent storage that isn't allowed there
-os.environ["CHROMADB_DEFAULT_DATABASE"] = "duckdb_in_memory"
-
-import chromadb
+import numpy as np
+import faiss
 
 
 class VectorStore:
-    def __init__(self):
+    def __init__(self, dim: int = 768):
         """
-        Initializes an in-memory Chroma vector store.
-        Works in Streamlit Cloud and other restricted environments.
+        FAISS in-memory vector store.
+        dim = dimension of embeddings (default 768 for many models)
         """
-        # In-memory client (safe for cloud deployment)
-        self.client = chromadb.Client()
-
-        # Create or get a cosine-similarity collection
-        self.collection = self.client.get_or_create_collection(
-            name="posts",
-            metadata={"hnsw:space": "cosine"}
-        )
+        self.dim = dim
+        self.index = faiss.IndexFlatL2(dim)
+        self.docs = []
+        self.metadatas = []
+        self.ids = []
 
     def add(self, ids: List[str], docs: List[str], metadatas: List[Dict], embeddings):
         """
-        Adds documents to the vector store.
+        Add vectors + metadata to FAISS index.
         """
-        self.collection.add(
-            ids=ids,
-            documents=docs,
-            metadatas=metadatas,
-            embeddings=embeddings
-        )
+        emb_array = np.array(embeddings).astype("float32")
+        self.index.add(emb_array)
+        self.ids.extend(ids)
+        self.docs.extend(docs)
+        self.metadatas.extend(metadatas)
 
     def upsert(self, ids: List[str], docs: List[str], metadatas: List[Dict], embeddings):
         """
-        Emulates an upsert by deleting then adding documents.
+        Simple upsert: clears and re-adds all data.
         """
-        try:
-            self.collection.delete(ids=ids)
-        except Exception:
-            pass
+        # This is a naive implementation (replace with proper per-ID removal if needed)
+        self.index = faiss.IndexFlatL2(self.dim)
+        self.ids, self.docs, self.metadatas = [], [], []
         self.add(ids, docs, metadatas, embeddings)
 
     def query(self, text: str, n: int = 5, embedding_fn=None):
         """
-        Queries the vector store for similar documents.
+        Query FAISS for similar items.
         """
         if embedding_fn is None:
             raise ValueError("Provide embedding_fn(texts) -> embeddings")
 
-        emb = embedding_fn([text])[0]
-        res = self.collection.query(
-            query_embeddings=[emb],
-            n_results=n,
-            include=["documents", "metadatas", "distances"]
-        )
-        return res
+        emb = np.array(embedding_fn([text])).astype("float32")
+        distances, idxs = self.index.search(emb, n)
+
+        results = {
+            "ids": [self.ids[i] for i in idxs[0] if i < len(self.ids)],
+            "documents": [self.docs[i] for i in idxs[0] if i < len(self.docs)],
+            "metadatas": [self.metadatas[i] for i in idxs[0] if i < len(self.metadatas)],
+            "distances": distances[0].tolist(),
+        }
+        return results
