@@ -58,7 +58,7 @@ st.subheader(" Latest Posts (moderated)")
 st.dataframe(kept[["platform","author","created_at","text","sentiment","url"]], use_container_width=True, height=260)
 
 # --- Vector store
-vs = VectorStore(path=".chroma")
+vs = VectorStore()
 if not kept.empty:
     ids = kept["id"].tolist()
     docs = kept["clean_text"].tolist()
