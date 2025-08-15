@@ -1,53 +1,48 @@
 from typing import List, Dict
 import numpy as np
-import faiss
 
 
 class VectorStore:
     def __init__(self, dim: int = 768):
-        """
-        FAISS in-memory vector store.
-        dim = dimension of embeddings (default 768 for many models)
-        """
         self.dim = dim
-        self.index = faiss.IndexFlatL2(dim)
-        self.docs = []
-        self.metadatas = []
-        self.ids = []
+        self.embeddings = np.empty((0, dim), dtype="float32")
+        self.ids: List[str] = []
+        self.docs: List[str] = []
+        self.metadatas: List[Dict] = []
 
     def add(self, ids: List[str], docs: List[str], metadatas: List[Dict], embeddings):
-        """
-        Add vectors + metadata to FAISS index.
-        """
-        emb_array = np.array(embeddings).astype("float32")
-        self.index.add(emb_array)
+        arr = np.array(embeddings, dtype="float32")
+        self.embeddings = np.vstack([self.embeddings, arr])
         self.ids.extend(ids)
         self.docs.extend(docs)
         self.metadatas.extend(metadatas)
 
     def upsert(self, ids: List[str], docs: List[str], metadatas: List[Dict], embeddings):
-        """
-        Simple upsert: clears and re-adds all data.
-        """
-        # This is a naive implementation (replace with proper per-ID removal if needed)
-        self.index = faiss.IndexFlatL2(self.dim)
+        # Naive upsert — clears all and re-adds
+        self.embeddings = np.empty((0, self.dim), dtype="float32")
         self.ids, self.docs, self.metadatas = [], [], []
         self.add(ids, docs, metadatas, embeddings)
 
     def query(self, text: str, n: int = 5, embedding_fn=None):
-        """
-        Query FAISS for similar items.
-        """
         if embedding_fn is None:
             raise ValueError("Provide embedding_fn(texts) -> embeddings")
 
-        emb = np.array(embedding_fn([text])).astype("float32")
-        distances, idxs = self.index.search(emb, n)
+        if len(self.ids) == 0:
+            return {"ids": [], "documents": [], "metadatas": [], "distances": []}
 
-        results = {
-            "ids": [self.ids[i] for i in idxs[0] if i < len(self.ids)],
-            "documents": [self.docs[i] for i in idxs[0] if i < len(self.docs)],
-            "metadatas": [self.metadatas[i] for i in idxs[0] if i < len(self.metadatas)],
-            "distances": distances[0].tolist(),
+        query_emb = np.array(embedding_fn([text]), dtype="float32")[0]
+        sims = self._cosine_similarity(query_emb, self.embeddings)
+        top_idx = np.argsort(sims)[::-1][:n]
+
+        return {
+            "ids": [self.ids[i] for i in top_idx],
+            "documents": [self.docs[i] for i in top_idx],
+            "metadatas": [self.metadatas[i] for i in top_idx],
+            "distances": [float(s) for s in sims[top_idx]],
         }
-        return results
+
+    @staticmethod
+    def _cosine_similarity(vec, mat):
+        vec_norm = vec / (np.linalg.norm(vec) + 1e-10)
+        mat_norm = mat / (np.linalg.norm(mat, axis=1, keepdims=True) + 1e-10)
+        return np.dot(mat_norm, vec_norm)
