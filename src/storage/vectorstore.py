@@ -1,25 +1,13 @@
-import os
 import chromadb
 from chromadb.config import Settings
 from typing import List, Dict
 
 class VectorStore:
-    def __init__(self, path: str = ".chroma"):
-        # Detect if running in a deployment environment (read-only filesystem)
-        in_cloud = os.environ.get("DEPLOYMENT", "false").lower() == "true" or not os.access(".", os.W_OK)
-
-        if in_cloud:
-            # In-memory Chroma (no persistence)
-            self.client = chromadb.Client(
-                Settings(anonymized_telemetry=False)
-            )
-        else:
-            # Persistent Chroma for local dev
-            self.client = chromadb.PersistentClient(
-                path=path,
-                settings=Settings(anonymized_telemetry=False)
-            )
-
+    def __init__(self):
+        # Always use in-memory DB
+        self.client = chromadb.Client(
+            Settings(anonymized_telemetry=False)
+        )
         self.collection = self.client.get_or_create_collection(
             name="posts",
             metadata={"hnsw:space": "cosine"}
@@ -34,7 +22,6 @@ class VectorStore:
         )
 
     def upsert(self, ids: List[str], docs: List[str], metadatas: List[Dict], embeddings):
-        # Emulate upsert with delete+add
         try:
             self.collection.delete(ids=ids)
         except Exception:
