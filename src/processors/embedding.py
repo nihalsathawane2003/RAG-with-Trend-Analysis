@@ -1,12 +1,14 @@
 from sentence_transformers import SentenceTransformer
-from functools import lru_cache
-from typing import List
 
-@lru_cache(maxsize=1)
+_model = None
+
 def get_model():
-    # Small, fast model
-    return SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+    global _model
+    if _model is None:
+        # Force CPU device to avoid CUDA issues on Streamlit Cloud
+        _model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2", device="cpu")
+    return _model
 
-def embed_texts(texts: List[str]):
+def embed_texts(texts):
     model = get_model()
-    return model.encode(texts, normalize_embeddings=True, convert_to_numpy=True)
+    return model.encode(texts, show_progress_bar=False)
