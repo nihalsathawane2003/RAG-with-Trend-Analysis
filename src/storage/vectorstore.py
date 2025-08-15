@@ -1,5 +1,10 @@
+import os
+
+# Force in-memory Chroma for Streamlit Cloud / limited environments
+os.environ["CHROMADB_DEFAULT_DATABASE"] = "duckdb_in_memory"
+
 import chromadb
-from typing import List, Dict
+
 
 class VectorStore:
     def __init__(self, persist: bool = False, path: str = ".chroma"):
